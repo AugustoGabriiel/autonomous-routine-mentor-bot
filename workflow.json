@@ -1,0 +1,404 @@
+{
+  "name": "Autonomous Routine Mentor Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "telegram-trigger-node",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [0, 112],
+      "credentials": {
+        "telegramApi": {
+          "id": "CONFIGURAR_CREDENCIAL_TELEGRAM",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "chat-filter",
+              "leftValue": "={{ $json.message.chat.id }}",
+              "rightValue": "SEU_CHAT_ID_AQUI",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "text-not-empty",
+              "leftValue": "={{ $json.message.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "filter-security-node",
+      "name": "Apenas Meu Chat com Texto",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [-32, 304]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "=Perfil do Usuário: graduado em Sistemas de Informação, em transição para CX com Automação e IA. Sua postura: seja caloroso, amigável, incentivador e próximo, como um verdadeiro parceiro de jornada. Fale em português do Brasil, de forma leve e acolhedora, com no máximo 3 a 4 frases. REGRA FUNDAMENTAL: quando você indicar ou alertar sobre uma atividade, nunca apenas fale o nome dela. Você DEVE SEMPRE orientar: 1) ONDE FAZER: cite a plataforma, site, ferramenta ou software (ex: Postman, n8n, GitHub, LinkedIn Jobs, YouTube, HubSpot Academy, Kindle). 2) COMO FAZER: dê um passo a passo prático, simples e direto para ele começar imediatamente sem travar. Grade de Horários: Bloco 1 (07:30 - 09:15): Estudos Técnicos (APIs, n8n, Webhooks, SQL, IA) - diga onde e o que testar. Bloco 2 (09:30 - 11:30): Treino de Musculação - incentive a cuidar do corpo e desconectar de telas. Intervalo livre (11:30 - 15:30): almoço, descanso e assuntos pessoais. Bloco 3 (15:30 - 17:30): Projetos Práticos e Portfólio - oriente a abrir o n8n/VS Code e subir no GitHub. Bloco 4 (17:30 - 19:00): Mercado e Prospecção de Vagas CX/Suporte N2/N3 - oriente a abrir o LinkedIn, personalizar 2 candidaturas e fazer conexões. Bloco 5 (19:00 - 20:00): Expansão Intelectual com revezamento dinâmico: se Leitura, indique o livro (ex: Hábitos Atômicos, The Effortless Experience) e meta de páginas no Kindle/físico; se Curso, indique a plataforma e o módulo (ex: HubSpot Academy, Postman Academy); se Palestra, indique o tema/talk para buscar no YouTube sobre CX, produto ou tecnologia. Quando ele responder sobre uma atividade, dê feedback caloroso: reconheça o esforço, ajude no que faltou e use o histórico da conversa. Use a ferramenta consultar_registro_hoje para saber quais blocos já foram feitos hoje (blocos sem registro estão pendentes). Use registrar_bloco sempre que ele relatar o resultado de um bloco (status: feito, parcial ou nao_feito; bloco: 1 a 5). Cobre com carinho e firmeza blocos passados pendentes, citando o bloco pelo nome. Nunca invente registros. TOM VISUAL: use emojis com naturalidade (1 a 3 por mensagem), combinando com o momento. Data e hora atuais: {{ $now.setZone(\"America/Fortaleza\").toFormat(\"cccc, dd/MM/yyyy HH:mm\") }}.",
+          "enableStreaming": false
+        }
+      },
+      "id": "agent-chat-node",
+      "name": "Gemini Assistant",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [224, 112],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {}
+      },
+      "id": "gemini-model-node",
+      "name": "Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [144, 320],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "CONFIGURAR_CREDENCIAL_GEMINI",
+          "name": "Google Gemini Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "user-session-v1",
+        "contextWindowLength": 20
+      },
+      "id": "memory-node",
+      "name": "Conversation Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [320, 336]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "rotina_registro"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "dia",
+              "keyValue": "={{ $now.setZone(\"America/Fortaleza\").toFormat(\"yyyy-MM-dd\") }}"
+            },
+            {
+              "keyName": "bloco",
+              "keyValue": "={{ $fromAI('bloco', 'Número do bloco da rotina: 1, 2, 3, 4 ou 5') }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "dia": "={{ $now.setZone(\"America/Fortaleza\").toFormat(\"yyyy-MM-dd\") }}",
+            "bloco": "={{ $fromAI('bloco', 'Número do bloco da rotina: 1, 2, 3, 4 ou 5') }}",
+            "status": "={{ $fromAI('status', 'Status do bloco: feito, parcial ou nao_feito') }}",
+            "observacao": "={{ $fromAI('observacao', 'Resumo curto do que foi relatado') }}"
+          },
+          "matchingColumns": [
+            "dia",
+            "bloco"
+          ]
+        },
+        "options": {}
+      },
+      "id": "tool-register-block",
+      "name": "registrar_bloco",
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1,
+      "position": [352, 528]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "rotina_registro"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "dia",
+              "keyValue": "={{ $now.setZone(\"America/Fortaleza\").toFormat(\"yyyy-MM-dd\") }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "tool-check-today",
+      "name": "consultar_registro_hoje",
+      "type": "n8n-nodes-base.dataTableTool",
+      "typeVersion": 1.1,
+      "position": [480, 320]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $(\"Telegram Trigger\").item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "send-reply-node",
+      "name": "Send Telegram Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [576, 112],
+      "credentials": {
+        "telegramApi": {
+          "id": "CONFIGURAR_CREDENCIAL_TELEGRAM",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "25 7,9,15,17 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "55 18 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-node",
+      "name": "Horários da Rotina",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [-48, 496]
+    },
+    {
+      "parameters": {
+        "jsCode": "const hour = $now.setZone('America/Fortaleza').hour;\nlet contexto = '';\nif (hour === 7) contexto = 'Faltam 5 minutos para os Estudos Técnicos (07:30 - 09:15). Foco em APIs e Webhooks. Explique COMO praticar e ONDE abrir (ex: Postman, n8n ou webhook.site).';\nelse if (hour === 9) contexto = 'Faltam 5 minutos para o Treino de Musculação (09:30 - 11:30). Incentive a deixar as telas de lado, focar na hidratação e no cuidado com o corpo.';\nelse if (hour === 15) contexto = 'Hora de retomar com tudo! Projetos Práticos e Portfólio (15:30 - 17:30). Oriente a abrir o n8n ou GitHub e avançar em um fluxo real com documentação.';\nelse if (hour === 17) contexto = 'Mercado e Prospecção de Vagas CX/Suporte N2/N3 (17:30 - 19:00). Oriente a abrir o LinkedIn Jobs, buscar vagas de CX Ops/Suporte N2 e personalizar as candidaturas com carinho.';\nelse if (hour === 18 || hour === 19) contexto = 'Expansão Intelectual (19:00 - 20:00). Escolha uma opção para hoje (leitura, curso ou palestra). Diga exatamente o título ou tema e onde acessar.';\nelse contexto = 'Check-in amigável e acolhedor sobre o dia.';\nreturn [{ json: { contexto, hour } }];"
+      },
+      "id": "code-define-block-node",
+      "name": "Definir Bloco do Horário",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 496]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Gere a mensagem de alerta agora. Contexto do horário: {{ $json.contexto }}. Escreva no máximo 3 a 4 frases, calorosas, acolhedoras e motivadoras, variando a abertura. Diga ONDE fazer (ferramenta/site) e COMO fazer (passo a passo simples). Consulte o registro de hoje e, se houver bloco anterior pendente, lembre com carinho. Convide-o a responder aqui com feedback ao terminar. Use emojis de forma natural.",
+        "options": {
+          "systemMessage": "=Perfil do Usuário: graduado em Sistemas de Informação, em transição para CX com Automação e IA. Você envia alertas para o Telegram dele 5 minutos antes de cada bloco. Entregue apenas o texto que será enviado diretamente ao Telegram, sem comentários extras, variando a abertura a cada disparo. Sua postura: seja caloroso, amigável, incentivador e próximo, como um verdadeiro parceiro de jornada. Fale em português do Brasil, de forma leve e acolhedora, com no máximo 3 a 4 frases. REGRA FUNDAMENTAL: quando você indicar ou alertar sobre uma atividade, nunca apenas fale o nome dela. Você DEVE SEMPRE orientar: 1) ONDE FAZER: cite a plataforma, site, ferramenta ou software (ex: Postman, n8n, GitHub, LinkedIn Jobs, YouTube, HubSpot Academy, Kindle). 2) COMO FAZER: dê um passo a passo prático, simples e direto para ele começar imediatamente sem travar. Grade de Horários: Bloco 1 (07:30 - 09:15): Estudos Técnicos (APIs, n8n, Webhooks, SQL, IA) - diga onde e o que testar. Bloco 2 (09:30 - 11:30): Treino de Musculação - incentive a cuidar do corpo e desconectar de telas. Intervalo livre (11:30 - 15:30): almoço, descanso e assuntos pessoais. Bloco 3 (15:30 - 17:30): Projetos Práticos e Portfólio - oriente a abrir o n8n/VS Code e subir no GitHub. Bloco 4 (17:30 - 19:00): Mercado e Prospecção de Vagas CX/Suporte N2/N3 - oriente a abrir o LinkedIn, personalizar 2 candidaturas e fazer conexões. Bloco 5 (19:00 - 20:00): Expansão Intelectual com revezamento dinâmico: se Leitura, indique o livro (ex: Hábitos Atômicos, The Effortless Experience) e meta de páginas no Kindle/físico; se Curso, indique a plataforma e o módulo (ex: HubSpot Academy, Postman Academy); se Palestra, indique o tema/talk para buscar no YouTube sobre CX, produto ou tecnologia. Quando ele responder sobre uma atividade, dê feedback caloroso: reconheça o esforço, ajude no que faltou e use o histórico da conversa. Use a ferramenta consultar_registro_hoje para saber quais blocos já foram feitos hoje (blocos sem registro estão pendentes). Use registrar_bloco sempre que ele relatar o resultado de um bloco (status: feito, parcial ou nao_feito; bloco: 1 a 5). Cobre com carinho e firmeza blocos passados pendentes, citando o bloco pelo nome. Nunca invente registros. TOM VISUAL: use emojis com naturalidade (1 a 3 por mensagem). Data e hora atuais: {{ $now.setZone(\"America/Fortaleza\").toFormat(\"cccc, dd/MM/yyyy HH:mm\") }}.",
+          "enableStreaming": false
+        }
+      },
+      "id": "agent-outbound-alert-node",
+      "name": "Gemini Gerar Alerta",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [528, 496],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "chatId": "SEU_CHAT_ID_AQUI",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "telegram-send-alert-node",
+      "name": "Enviar Alerta Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [880, 496],
+      "credentials": {
+        "telegramApi": {
+          "id": "CONFIGURAR_CREDENCIAL_TELEGRAM",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Apenas Meu Chat com Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apenas Meu Chat com Texto": {
+      "main": [
+        [
+          {
+            "node": "Gemini Assistant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Assistant": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Assistant",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Gemini Gerar Alerta",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Gemini Assistant",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "Gemini Gerar Alerta",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "registrar_bloco": {
+      "ai_tool": [
+        [
+          {
+            "node": "Gemini Assistant",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Gemini Gerar Alerta",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_registro_hoje": {
+      "ai_tool": [
+        [
+          {
+            "node": "Gemini Assistant",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Gemini Gerar Alerta",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Horários da Rotina": {
+      "main": [
+        [
+          {
+            "node": "Definir Bloco do Horário",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Definir Bloco do Horário": {
+      "main": [
+        [
+          {
+            "node": "Gemini Gerar Alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Gerar Alerta": {
+      "main": [
+        [
+          {
+            "node": "Enviar Alerta Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Fortaleza"
+  }
+}
