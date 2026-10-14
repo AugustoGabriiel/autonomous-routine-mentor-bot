@@ -38,3 +38,17 @@ O sistema opera em duas frentes:
                                                                ▲
 [Telegram Trigger] ──► [Filter: Auth Chat ID] ────────────────┘
 ```
+## ⚙️ Instruções de Implantação
+
+1. Clone este repositório ou baixe o arquivo `workflow.json`.
+2. No seu n8n, crie um novo workflow e importe o arquivo `workflow.json`.
+3. Configure as seguintes credenciais no painel do n8n:
+   - **Telegram API:** Token obtido via `@BotFather`.
+   - **Google Gemini API:** Chave obtida via Google AI Studio.
+4. No nó `Apenas Meu Chat com Texto` e no nó `Enviar Alerta Telegram`, atualize o valor do campo `Chat ID` para o seu identificador numérico pessoal.
+5. Crie uma Data Table com o nome `rotina_registro` contendo as seguintes colunas de texto:
+   - `dia` (YYYY-MM-DD)
+   - `bloco` (1 a 5)
+   - `status` (feito, parcial, nao_feito)
+   - `observacao` (resumo em texto)
+6. Ative o workflow no n8n.
